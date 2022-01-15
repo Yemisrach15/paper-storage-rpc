@@ -11,10 +11,25 @@ typedef struct {
 	int id;
 	char author[20];
 	char title[20];
+	char fileExtension[3];
 } Paper;
 
+char * getFileExtension(char *filename) {
+	char *token = strtok(filename,".");
+    char *extension;
+
+    while (token != NULL)
+    {
+        extension = token;
+        token = strtok(NULL, ".");
+    }
+
+    return extension;
+}
+
 int findFileLength(char *filename) {
-	FILE *fp = fopen(filename, "r");
+	FILE *fp; 
+	fp = fopen(filename, "r");
 
 	if (fp == NULL) {
 		printf("File Not Found!\n");
@@ -34,30 +49,72 @@ static int count = 0;
 addArgs_out *
 add_file_1_svc(addArgs_in *argp, struct svc_req *rqstp)
 {
-	printf("Add function called\n");
+	printf("Add function called!\n");
 
 	if (papers == 0) {
 		papers = (Paper*) malloc(15 * sizeof(Paper));
 	}
 
-	// save file
 	char newTitle[20];
+	static addArgs_out result;
+
+	char fext[20];
+	strcpy(fext, argp->fileName);
+
+	if (strcmp(getFileExtension(fext), "pdf") == 0) {
+		FILE *fpw;
+		snprintf(newTitle, sizeof(newTitle), "%d%s", count, ".pdf");
+		fpw = fopen(newTitle, "ab +");
+
+		if (fpw == NULL) {
+			perror("fopen");
+			printf("Sorry the file cannot be opened");
+            exit(1);
+		}
+
+		fwrite(argp->content, 1, strlen(argp->content), fpw);
+		fclose(fpw);
+
+		if (strlen(argp->content) < 1950) {
+			// add file info into array if content < 1950 which means this is the last read buffer from client
+			papers[count].id = count;
+			strcpy(papers[count].author, argp->author);
+			strcpy(papers[count].title, argp->title);
+			strcpy(papers[count].fileExtension, "pdf");
+			
+			// return result
+			result.id = count;
+			result.author = argp->author;
+			result.title = argp->title;
+			result.content = argp->content;
+			
+			count++;
+		} else {
+			result.id = -1; // client not finished sending read buffer, more to come
+		}
+
+		return &result;
+	}
+
+	// save file
 	snprintf(newTitle, sizeof(newTitle), "%d%s", count, ".doc");
-	FILE *fpw = fopen(newTitle, "w+");
-	fputs(argp->content, fpw);
+	FILE *fpw;
+	fpw = fopen(newTitle, "w+");
+	fwrite(argp->content, 1, argp->fileLength, fpw);
 	fclose(fpw);
 
-	// add file info to array
-	static addArgs_out  result;
+	// add file info into array
 	papers[count].id = count;
-	snprintf(papers[count].author, sizeof(papers[count].author), "%s%s", papers[count].author, argp->author);
-	snprintf(papers[count].title, sizeof(papers[count].title), "%s%s", papers[count].title, argp->title);
+	strcpy(papers[count].author, argp->author);
+	strcpy(papers[count].title, argp->title);
+	strcpy(papers[count].fileExtension, "doc");
 
 	// return result
 	result.id = count;
 	result.author = argp->author;
 	result.title = argp->title;
 	result.content = argp->content;
+
 	count++;
 
 	return &result;
@@ -101,9 +158,12 @@ detail_file_1_svc(detailArgs_in *argp, struct svc_req *rqstp)
 
 	printf("Detail file function called\n");
 
+	int id = *argp;
 	char fileTitle[20];
-	snprintf(fileTitle, sizeof(fileTitle), "%d%s", *argp, ".doc");
-	FILE *fp = fopen(fileTitle, "r");
+	snprintf(fileTitle, sizeof(fileTitle), "%d.%s", id, papers[id].fileExtension);
+
+	FILE *fp;
+	fp = fopen(fileTitle, "r");
 
 	char *errorMsg = malloc(100 * sizeof(char));
 
@@ -111,7 +171,7 @@ detail_file_1_svc(detailArgs_in *argp, struct svc_req *rqstp)
 		printf("File Not Found!\n");
 		char idString[2];
 		strcpy(errorMsg, "No file with ID ");
-		sprintf(idString, "%d", *argp);
+		sprintf(idString, "%d", id);
 		strcat(errorMsg, idString);
 		strcat(errorMsg, "\n");
 		result.id = -1;
@@ -120,8 +180,6 @@ detail_file_1_svc(detailArgs_in *argp, struct svc_req *rqstp)
 		return &result;
 	}
 
-
-	int id = *argp;
 	result.id = papers[id].id;
 	result.author = papers[id].author;
 	result.title = papers[id].title;
@@ -139,7 +197,8 @@ fetch_file_1_svc(fetchArgs_in *argp, struct svc_req *rqstp)
 	int id = *argp;
 	char fileTitle[20];
 	snprintf(fileTitle, sizeof(fileTitle), "%d%s", id, ".doc");
-	FILE *fp = fopen(fileTitle, "r");
+	FILE *fp;
+	fp = fopen(fileTitle, "r");
 
 	char *buffer;
 	char *errorMsg = malloc(100 * sizeof(char));

@@ -10,13 +10,20 @@ xdr_addArgs_in (XDR *xdrs, addArgs_in *objp)
 {
 	register int32_t *buf;
 
-	 if (!xdr_string (xdrs, &objp->author, ~0))
+	int i;
+	 if (!xdr_vector (xdrs, (char *)objp->author, 20,
+		sizeof (char), (xdrproc_t) xdr_char))
 		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->title, ~0))
+	 if (!xdr_vector (xdrs, (char *)objp->title, 15,
+		sizeof (char), (xdrproc_t) xdr_char))
 		 return FALSE;
 	 if (!xdr_int (xdrs, &objp->fileLength))
 		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->content, ~0))
+	 if (!xdr_vector (xdrs, (char *)objp->content, 1950,
+		sizeof (char), (xdrproc_t) xdr_char))
+		 return FALSE;
+	 if (!xdr_vector (xdrs, (char *)objp->fileName, 15,
+		sizeof (char), (xdrproc_t) xdr_char))
 		 return FALSE;
 	return TRUE;
 }

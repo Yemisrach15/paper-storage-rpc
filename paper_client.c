@@ -7,8 +7,22 @@
 #include "paper.h"
 #include <string.h>
 
+char * getFileExtension(char *filename) {
+	char *token = strtok(filename,".");
+    char *extension;
+
+    while (token != NULL)
+    {
+        extension = token;
+        token = strtok(NULL, ".");
+    }
+
+    return extension;
+}
+
 int findFileLength(char *filename) {
-	FILE *fp = fopen(filename, "r");
+	FILE *fp;
+	fp = fopen(filename, "r");
 
 	if (fp == NULL) {
 		printf("File Not Found!\n");
@@ -23,7 +37,8 @@ int findFileLength(char *filename) {
 }
 
 char * getFileContent(char *filename) {
-	FILE *fp = fopen(filename, "r");
+	FILE *fp;
+	fp = fopen(filename, "r");
 	char *buffer = 0;
 
 	if (fp == NULL) {
@@ -55,18 +70,65 @@ add_prog_1(char *author, char *title, char  *filename, char *host)
 		exit (1);
 	}
 	#endif	/* DEBUG */
-	add_file_1_arg.author = author;
-	add_file_1_arg.title = title;
+
+	char fext[20];
+	strcpy(fext, filename);
+
+	if (strcmp(getFileExtension(fext), "pdf") == 0) {;
+		FILE *fpr;
+		fpr = fopen(filename, "rb");
+
+		if (fpr == NULL) {
+			perror("fopen");
+			printf("Sorry the file cannot be opened\n");
+            exit(1);
+		}
+
+		while (1) {
+			strcpy(add_file_1_arg.author, author);
+			strcpy(add_file_1_arg.title, title);
+			strcpy(add_file_1_arg.fileName, filename);
+			memset(&(add_file_1_arg.content[0]), 0, sizeof(add_file_1_arg.content)); // clear buffer before sending
+			int nread = fread(add_file_1_arg.content, 1, 1950, fpr);
+			if (nread > 0) {
+				result_1 = add_file_1(&add_file_1_arg, clnt);
+			}
+			if (nread < 1950) {
+				if (ferror(fpr)) 
+					printf("Error reading\n");
+				break;
+			}
+		}
+
+		fclose(fpr);
+
+		printf("\n=========================\n");
+		printf("ADDED FILE INFO: ");
+		printf("\n=========================\n");
+		printf("ID: %d\n", result_1->id);
+		printf("Author: %s\n", result_1->author);
+		printf("Title: %s\n", result_1->title);
+		printf("=========================\n");
+
+		#ifndef	DEBUG
+		clnt_destroy (clnt);
+		#endif	 /* DEBUG */
+
+		return;
+	}
+
+	strcpy(add_file_1_arg.author, author);
+	strcpy(add_file_1_arg.title, title);
 	int length = findFileLength(filename);
 	add_file_1_arg.fileLength = length;
 	char * content = getFileContent(filename);
-	add_file_1_arg.content = content;
+	strcpy(add_file_1_arg.content, content);
 
 	result_1 = add_file_1(&add_file_1_arg, clnt);
 	if (result_1 == (addArgs_out *) NULL) {
 		clnt_perror (clnt, "call failed");
 	}
-
+	
 	printf("\n=========================\n");
 	printf("ADDED FILE INFO: ");
 	printf("\n=========================\n");

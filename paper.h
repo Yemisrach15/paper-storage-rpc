@@ -15,10 +15,11 @@ extern "C" {
 
 
 struct addArgs_in {
-	char *author;
-	char *title;
+	char author[20];
+	char title[15];
 	int fileLength;
-	char *content;
+	char content[1950];
+	char fileName[15];
 };
 typedef struct addArgs_in addArgs_in;
 

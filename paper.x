@@ -1,9 +1,10 @@
 struct addArgs_in
 {	
-	string author<>;
-	string title<>;
+	char author[20];
+	char title[15];
 	int fileLength;
-	string content<>;	
+	char content[1950];
+	char fileName[15];
 };
 
 struct addArgs_out
